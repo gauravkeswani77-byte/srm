@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building Theory from the Ground Up</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0d1b3e;
+    --orange: #f47c20;
+    --orange-light: #ffecd9;
+    --slate: #3d5a8a;
+    --gray: #e8ecf4;
+    --white: #ffffff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--navy);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--orange);
+    transition: width 0.5s ease;
+  }
+
+  /* Slide container */
+  .slides-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: all 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: all;
+  }
+  .slide.exit {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+
+  /* Nav */
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 40px;
+    flex-shrink: 0;
+    background: rgba(13,27,62,0.8);
+    backdrop-filter: blur(10px);
+  }
+  .slide-counter {
+    font-family: 'Syne', sans-serif;
+    color: rgba(255,255,255,0.4);
+    font-size: 13px;
+    letter-spacing: 2px;
+  }
+  .nav-dots {
+    display: flex;
+    gap: 8px;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .dot.active { background: var(--orange); transform: scale(1.3); }
+  .nav-btns { display: flex; gap: 10px; }
+  .btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: white;
+    padding: 10px 24px;
+    border-radius: 100px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn:hover { background: rgba(255,255,255,0.15); }
+  .btn.primary { background: var(--orange); border-color: var(--orange); }
+  .btn.primary:hover { background: #e06a10; }
+  .btn:disabled { opacity: 0.3; cursor: default; }
+
+  /* ====== SLIDE STYLES ====== */
+  .tag {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(32px, 5vw, 60px);
+    font-weight: 800;
+    color: white;
+    line-height: 1.05;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(22px, 3vw, 38px);
+    font-weight: 700;
+    color: white;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  .subtitle {
+    color: rgba(255,255,255,0.55);
+    font-size: 18px;
+    text-align: center;
+    max-width: 500px;
+    line-height: 1.6;
+  }
+
+  /* Slide 1 - Hero */
+  .hero-graphic {
+    width: 180px; height: 180px;
+    margin-bottom: 32px;
+    position: relative;
+  }
+  .hero-graphic svg { width: 100%; height: 100%; }
+
+  /* Slide 2 - Origin */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    width: 100%;
+    max-width: 860px;
+    align-items: center;
+  }
+  .origin-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 28px;
+  }
+  .year-badge {
+    width: 70px; height: 70px;
+    background: var(--orange);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 18px;
+    color: white;
+    margin-bottom: 16px;
+  }
+  .origin-card p { color: rgba(255,255,255,0.7); line-height: 1.6; font-size: 15px; }
+
+  .pyramid {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .pyramid-level {
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: white;
+    padding: 12px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+  }
+  .pyramid-level:hover { transform: scale(1.04); }
+  .pyr-top { background: var(--orange); width: 160px; }
+  .pyr-mid { background: var(--slate); width: 220px; }
+  .pyr-bot { background: var(--navy); border: 1px solid rgba(255,255,255,0.2); width: 280px; }
+  .pyr-label { font-size: 10px; opacity: 0.7; font-weight: 400; display: block; margin-top: 2px; }
+
+  /* Slide 3 - Engine */
+  .engine-container {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    max-width: 860px;
+    width: 100%;
+  }
+  .engine-circle {
+    position: relative;
+    width: 260px; height: 260px;
+    flex-shrink: 0;
+  }
+  .engine-circle svg { width: 100%; height: 100%; }
+  .engine-center {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90px; height: 90px;
+    background: var(--orange);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 12px;
+    color: white; text-align: center;
+    line-height: 1.3;
+  }
+  .engine-items { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+  .engine-item {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-left: 3px solid var(--orange);
+    border-radius: 10px;
+    padding: 14px 18px;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  .engine-item:hover, .engine-item.active-item {
+    background: rgba(244,124,32,0.12);
+    border-color: var(--orange);
+  }
+  .engine-item h4 { font-family: 'Syne', sans-serif; color: white; font-size: 14px; margin-bottom: 4px; }
+  .engine-item p { color: rgba(255,255,255,0.55); font-size: 13px; line-height: 1.5; }
+
+  /* Slide 4 - Process */
+  .process-steps {
+    display: flex;
+    gap: 0;
+    align-items: flex-start;
+    max-width: 900px;
+    width: 100%;
+  }
+  .step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    padding: 16px 12px;
+    border-radius: 16px;
+    transition: all 0.25s;
+  }
+  .step:hover, .step.active-step { background: rgba(255,255,255,0.06); }
+  .step-num {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 16px;
+    color: white;
+    margin-bottom: 12px;
+  }
+  .step-line {
+    flex: none;
+    width: 40px;
+    height: 2px;
+    background: rgba(255,255,255,0.15);
+    align-self: center;
+    margin-bottom: 48px;
+  }
+  .step h4 { font-family: 'Syne', sans-serif; color: white; font-size: 14px; margin-bottom: 6px; }
+  .step p { color: rgba(255,255,255,0.5); font-size: 12px; line-height: 1.5; }
+  .step-detail {
+    margin-top: 24px;
+    background: rgba(244,124,32,0.1);
+    border: 1px solid rgba(244,124,32,0.3);
+    border-radius: 16px;
+    padding: 20px 28px;
+    max-width: 600px;
+    width: 100%;
+    text-align: center;
+    min-height: 80px;
+    transition: all 0.3s;
+  }
+  .step-detail p { color: rgba(255,255,255,0.8); font-size: 14px; line-height: 1.6; }
+
+  /* Slide 5 - Industries */
+  .grid4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 760px;
+    width: 100%;
+  }
+  .industry-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 18px;
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .industry-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--orange);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .industry-card:hover::before { opacity: 0.08; }
+  .industry-card:hover { border-color: var(--orange); transform: translateY(-3px); }
+  .industry-icon { font-size: 28px; margin-bottom: 10px; }
+  .industry-card h4 { font-family: 'Syne', sans-serif; color: white; font-size: 15px; margin-bottom: 6px; position: relative; }
+  .industry-card p { color: rgba(255,255,255,0.5); font-size: 13px; line-height: 1.5; position: relative; }
+
+  /* Slide 6 - Comparison */
+  .compare-table {
+    width: 100%;
+    max-width: 800px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .compare-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    background: var(--navy);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .compare-header div {
+    padding: 14px 20px;
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+  }
+  .compare-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .compare-row:hover { background: rgba(255,255,255,0.04); }
+  .compare-row.highlight { background: rgba(244,124,32,0.12); border-color: rgba(244,124,32,0.3); }
+  .compare-row div {
+    padding: 16px 20px;
+    color: rgba(255,255,255,0.7);
+    font-size: 14px;
+    border-right: 1px solid rgba(255,255,255,0.06);
+  }
+  .compare-row.highlight div { color: white; font-weight: 500; }
+  .compare-row div:first-child { font-family: 'Syne', sans-serif; font-weight: 600; }
+
+  /* Slide 7 - Pros/Cons */
+  .pros-cons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 800px;
+    width: 100%;
+  }
+  .pros-col h3, .cons-col h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .pros-col h3 { color: #4ade80; }
+  .cons-col h3 { color: #f87171; }
+  .pros-item, .cons-item {
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .pros-item { background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.15); color: rgba(255,255,255,0.75); }
+  .cons-item { background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.15); color: rgba(255,255,255,0.75); }
+  .pros-item:hover { background: rgba(74,222,128,0.15); }
+  .cons-item:hover { background: rgba(248,113,113,0.15); }
+  .dot-icon { flex-shrink: 0; margin-top: 2px; }
+
+  /* Slide 8 - Example */
+  .example-flow {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: 900px;
+    width: 100%;
+  }
+  .ex-box {
+    flex: 1;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+  }
+  .ex-box h4 { font-family: 'Syne', sans-serif; color: var(--orange); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+  .speech-bubble {
+    background: rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .ex-arrow {
+    font-size: 28px;
+    color: var(--orange);
+    flex-shrink: 0;
+  }
+  .ex-theory {
+    flex: 1;
+    border-radius: 16px;
+    padding: 24px;
+    border: 2px solid var(--orange);
+    background: rgba(244,124,32,0.08);
+    text-align: center;
+  }
+  .ex-theory h4 { font-family: 'Syne', sans-serif; color: var(--orange); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+  .theory-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 12px;
+    line-height: 1.3;
+  }
+  .ex-theory p { font-size: 13px; color: rgba(255,255,255,0.6); line-height: 1.6; }
+
+  /* Slide 9 - Conclusion */
+  .conclusion-box {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 24px;
+    padding: 40px 48px;
+    max-width: 700px;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .conclusion-box p {
+    font-size: 20px;
+    color: rgba(255,255,255,0.85);
+    line-height: 1.7;
+    font-weight: 300;
+  }
+  .conclusion-box strong { color: var(--orange); font-weight: 600; }
+  .key-points {
+    display: flex;
+    gap: 16px;
+  }
+  .kp {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.6);
+    text-align: center;
+    flex: 1;
+  }
+  .kp strong { color: white; font-family: 'Syne', sans-serif; display: block; margin-bottom: 4px; }
+
+  /* Spinning animation for engine */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin-slow { animation: spin 12s linear infinite; transform-origin: center; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  .float-anim { animation: float 4s ease-in-out infinite; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .slide.active .fade-up { animation: fadeUp 0.5s ease forwards; }
+  .slide.active .fade-up:nth-child(2) { animation-delay: 0.1s; }
+  .slide.active .fade-up:nth-child(3) { animation-delay: 0.2s; }
+  .slide.active .fade-up:nth-child(4) { animation-delay: 0.3s; }
+  .slide.active .fade-up:nth-child(5) { animation-delay: 0.4s; }
+
+  /* keyboard hint */
+  .kbd-hint {
+    font-size: 12px;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-bar">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<div class="slides-wrapper">
+
+  <!-- SLIDE 1: Hero -->
+  <div class="slide active" data-slide="0">
+    <div class="hero-graphic float-anim">
+      <svg viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="90" cy="90" r="85" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+        <circle cx="90" cy="90" r="60" stroke="rgba(244,124,32,0.2)" stroke-width="1"/>
+        <circle cx="90" cy="90" r="35" fill="rgba(244,124,32,0.15)" stroke="rgba(244,124,32,0.5)" stroke-width="1.5"/>
+        <polygon points="90,55 120,115 60,115" fill="rgba(244,124,32,0.8)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+        <line x1="90" y1="30" x2="90" y2="15" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+        <line x1="140" y1="60" x2="155" y2="50" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+        <line x1="140" y1="120" x2="155" y2="130" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+        <line x1="40" y1="60" x2="25" y2="50" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+        <line x1="40" y1="120" x2="25" y2="130" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+        <circle cx="90" cy="15" r="3" fill="rgba(244,124,32,0.8)"/>
+        <circle cx="155" cy="50" r="3" fill="rgba(255,255,255,0.4)"/>
+        <circle cx="155" cy="130" r="3" fill="rgba(255,255,255,0.4)"/>
+        <circle cx="25" cy="50" r="3" fill="rgba(255,255,255,0.4)"/>
+        <circle cx="25" cy="130" r="3" fill="rgba(255,255,255,0.4)"/>
+      </svg>
+    </div>
+    <div class="tag fade-up">A Visual Guide</div>
+    <h1 class="fade-up">Building Theory<br>from the Ground Up</h1>
+    <p class="subtitle fade-up">An interactive exploration of Grounded Theory in Social Research — the method that starts with data, not assumptions.</p>
+  </div>
+
+  <!-- SLIDE 2: Origin -->
+  <div class="slide" data-slide="1">
+    <h2 class="fade-up">Discovering Theory Instead of Testing It</h2>
+    <div class="two-col">
+      <div class="origin-card fade-up">
+        <div class="year-badge">1967</div>
+        <p style="font-family:'Syne',sans-serif; font-size:16px; color:white; margin-bottom:10px;">Developed by sociologists <strong>Barney Glaser</strong> and <strong>Anselm Strauss</strong>.</p>
+        <p>Created for researchers with no existing hypothesis to test — a rigorous, systematic method to let the <em style="color:var(--orange)">data speak for itself.</em></p>
+      </div>
+      <div class="fade-up">
+        <p style="font-family:'Syne',sans-serif; color:rgba(255,255,255,0.4); font-size:11px; letter-spacing:2px; text-transform:uppercase; text-align:center; margin-bottom:12px;">The Paradigm Shift</p>
+        <div class="pyramid">
+          <div class="pyramid-level pyr-top" title="The final grounded framework">
+            Emergent Theory
+            <span class="pyr-label">Final framework</span>
+          </div>
+          <div class="pyramid-level pyr-mid" title="Grouped patterns">
+            Concepts
+            <span class="pyr-label">Grouped patterns</span>
+          </div>
+          <div class="pyramid-level pyr-bot" title="Interviews and observations">
+            Raw Data
+            <span class="pyr-label">Interviews & observations</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: Constant Comparative Engine -->
+  <div class="slide" data-slide="2">
+    <h2 class="fade-up">The Constant Comparative Engine</h2>
+    <div class="engine-container fade-up">
+      <div class="engine-circle">
+        <svg viewBox="0 0 260 260">
+          <circle cx="130" cy="130" r="110" stroke="rgba(255,255,255,0.08)" stroke-width="18" fill="none"/>
+          <circle cx="130" cy="130" r="110" stroke="var(--orange)" stroke-width="18" fill="none"
+            stroke-dasharray="480 200" stroke-linecap="round" class="spin-slow"/>
+        </svg>
+        <div class="engine-center">Emergent<br>Insight</div>
+      </div>
+      <div class="engine-items">
+        <div class="engine-item" onclick="highlightEngine(this)">
+          <h4>⚡ Simultaneous Action</h4>
+          <p>Data collection and analysis happen at the same time — not one after the other.</p>
+        </div>
+        <div class="engine-item" onclick="highlightEngine(this)">
+          <h4>🔁 Constant Comparison</h4>
+          <p>Every new data point is immediately compared against all existing data to surface patterns.</p>
+        </div>
+        <div class="engine-item" onclick="highlightEngine(this)">
+          <h4>🎯 Theoretical Sampling</h4>
+          <p>Your early findings actively determine who or what you should observe next.</p>
+        </div>
+      </div>
+    </div>
+    <p class="subtitle" style="font-size:13px; margin-top:20px; opacity:0.5;">👆 Click each card to highlight it</p>
+  </div>
+
+  <!-- SLIDE 4: Process -->
+  <div class="slide" data-slide="3">
+    <h2 class="fade-up">From Raw Data to Conceptual Framework</h2>
+    <div class="process-steps fade-up" id="processSteps">
+      <div class="step active-step" onclick="showStepDetail(0)">
+        <div class="step-num" style="background:var(--orange)">1</div>
+        <h4>Identify</h4>
+        <p>Broad, exploratory research problem</p>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" onclick="showStepDetail(1)">
+        <div class="step-num" style="background:var(--slate)">2</div>
+        <h4>Collect</h4>
+        <p>Interviews, documents, field notes</p>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" onclick="showStepDetail(2)">
+        <div class="step-num" style="background:var(--slate)">3</div>
+        <h4>Code</h4>
+        <p>Open → Axial → Selective coding</p>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" onclick="showStepDetail(3)">
+        <div class="step-num" style="background:var(--slate)">4</div>
+        <h4>Generate</h4>
+        <p>Build relationships to form theory</p>
+      </div>
+    </div>
+    <div class="step-detail fade-up" id="stepDetail">
+      <p>Start with a <strong style="color:var(--orange)">broad, open-ended question</strong> — no hypothesis needed. You're exploring, not confirming.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: Industries -->
+  <div class="slide" data-slide="4">
+    <h2 class="fade-up">Mapping Uncharted Territories Across Industries</h2>
+    <div class="grid4 fade-up">
+      <div class="industry-card">
+        <div class="industry-icon">🏢</div>
+        <h4>Organizational Behavior & HR</h4>
+        <p>Workplace culture, leadership dynamics, change management</p>
+      </div>
+      <div class="industry-card">
+        <div class="industry-icon">🏥</div>
+        <h4>Healthcare & Medicine</h4>
+        <p>Patient experience journeys, unmapped care pathways</p>
+      </div>
+      <div class="industry-card">
+        <div class="industry-icon">🧠</div>
+        <h4>Sociology & Psychology</h4>
+        <p>Group dynamics, behavioral shifts, human lived experiences</p>
+      </div>
+      <div class="industry-card">
+        <div class="industry-icon">🏛️</div>
+        <h4>Education & Public Policy</h4>
+        <p>Impact of learning systems, real-world policy adoption</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: Comparison -->
+  <div class="slide" data-slide="5">
+    <h2 class="fade-up">How Grounded Theory Differs</h2>
+    <div class="compare-table fade-up">
+      <div class="compare-header">
+        <div>Methodology</div>
+        <div>Starting Point</div>
+        <div>Final Output</div>
+      </div>
+      <div class="compare-row">
+        <div>Quantitative</div>
+        <div>Deductive (Hypothesis first)</div>
+        <div>Validated or rejected hypothesis</div>
+      </div>
+      <div class="compare-row">
+        <div>Case Study</div>
+        <div>Specific entity or boundary</div>
+        <div>Deep profile of a single instance</div>
+      </div>
+      <div class="compare-row">
+        <div>Ethnography</div>
+        <div>Immersive observation</div>
+        <div>Description of a lived culture</div>
+      </div>
+      <div class="compare-row highlight">
+        <div>🔶 Grounded Theory</div>
+        <div>Inductive (Data first)</div>
+        <div>A newly constructed theory</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: Pros & Cons -->
+  <div class="slide" data-slide="6">
+    <h2 class="fade-up">Weighing the Flexibility Against the Demands</h2>
+    <div class="pros-cons fade-up">
+      <div class="pros-col">
+        <h3>✅ Advantages</h3>
+        <div class="pros-item">
+          <span class="dot-icon">↑</span>
+          <span>Produces highly context-rich, reality-based theories</span>
+        </div>
+        <div class="pros-item">
+          <span class="dot-icon">↑</span>
+          <span>Ideal for entirely new, disruptive, or under-researched topics</span>
+        </div>
+        <div class="pros-item">
+          <span class="dot-icon">↑</span>
+          <span>Highly flexible — adapts as the data reveals new directions</span>
+        </div>
+      </div>
+      <div class="cons-col">
+        <h3>⚠️ Limitations</h3>
+        <div class="cons-item">
+          <span class="dot-icon">!</span>
+          <span>Notoriously time-consuming; requires managing massive amounts of unstructured data</span>
+        </div>
+        <div class="cons-item">
+          <span class="dot-icon">!</span>
+          <span>High risk of researcher bias influencing the coding process</span>
+        </div>
+        <div class="cons-item">
+          <span class="dot-icon">!</span>
+          <span>Findings lack broad statistical generalizability</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: Example -->
+  <div class="slide" data-slide="7">
+    <h2 class="fade-up">In Practice: Decoding Startup Burnout</h2>
+    <div class="example-flow fade-up">
+      <div class="ex-box">
+        <h4>The Messy Reality</h4>
+        <div class="speech-bubble">"I'm exhausted"</div>
+        <div class="speech-bubble">"They praised my hustle"</div>
+        <div class="speech-bubble">"I can't unplug"</div>
+        <p style="color:rgba(255,255,255,0.4); font-size:12px; margin-top:12px;">30 unstructured interviews • No initial hypothesis</p>
+      </div>
+      <div class="ex-arrow">→</div>
+      <div class="ex-box" style="text-align:center; border-color:rgba(255,255,255,0.15);">
+        <h4>Coding Process</h4>
+        <p style="color:rgba(255,255,255,0.5); font-size:13px; line-height:1.6;">Open Coding<br>↓<br>Axial Coding<br>↓<br>Selective Coding</p>
+      </div>
+      <div class="ex-arrow">→</div>
+      <div class="ex-theory">
+        <h4>Emergent Theory</h4>
+        <div class="theory-name">The Validation–Exhaustion Cycle</div>
+        <p>Constant managerial praise directly triggers voluntary overwork, leading to an inevitable crash. <em style="color:var(--orange)">The theory was discovered, not tested.</em></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 9: Conclusion -->
+  <div class="slide" data-slide="8">
+    <div class="tag fade-up">Conclusion</div>
+    <div class="conclusion-box fade-up">
+      <p>Grounded Theory remains the <strong>premier methodology</strong> for building practical, data-driven social theories. It forces researchers to <strong>abandon preconceptions</strong> and build structural frameworks <strong>directly from the ground up.</strong></p>
+    </div>
+    <div class="key-points fade-up">
+      <div class="kp"><strong>Inductive</strong>Data first, theory second</div>
+      <div class="kp"><strong>Iterative</strong>Collect, analyze, repeat</div>
+      <div class="kp"><strong>Emergent</strong>Theory is discovered</div>
+      <div class="kp"><strong>Flexible</strong>Adapts to new findings</div>
+    </div>
+  </div>
+
+</div><!-- end slides-wrapper -->
+
+<div class="nav">
+  <span class="slide-counter" id="slideCounter">01 / 09</span>
+  <div class="nav-dots" id="navDots"></div>
+  <div style="display:flex; align-items:center; gap:16px;">
+    <span class="kbd-hint">← → keys</span>
+    <div class="nav-btns">
+      <button class="btn" id="prevBtn" onclick="changeSlide(-1)" disabled>← Prev</button>
+      <button class="btn primary" id="nextBtn" onclick="changeSlide(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const totalSlides = slides.length;
+  let current = 0;
+
+  // Build dots
+  const dotsContainer = document.getElementById('navDots');
+  for (let i = 0; i < totalSlides; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsContainer.appendChild(d);
+  }
+
+  function goTo(index) {
+    if (index < 0 || index >= totalSlides) return;
+    slides[current].classList.remove('active');
+    slides[current].classList.add('exit');
+    setTimeout(() => slides[current < index ? current : index + 1]?.classList.remove('exit'), 600);
+    slides[current].addEventListener('transitionend', function cleanup() {
+      slides[current].classList.remove('exit');
+      slides[current].removeEventListener('transitionend', cleanup);
+    });
+    current = index;
+    slides[current].classList.add('active');
+    updateUI();
+  }
+
+  function changeSlide(dir) { goTo(current + dir); }
+
+  function updateUI() {
+    document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+    document.getElementById('slideCounter').textContent = String(current + 1).padStart(2,'0') + ' / ' + String(totalSlides).padStart(2,'0');
+    document.getElementById('progressFill').style.width = ((current + 1) / totalSlides * 100) + '%';
+    document.getElementById('prevBtn').disabled = current === 0;
+    document.getElementById('nextBtn').textContent = current === totalSlides - 1 ? '↩ Restart' : 'Next →';
+    document.getElementById('nextBtn').onclick = current === totalSlides - 1 ? () => goTo(0) : () => changeSlide(1);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') changeSlide(-1);
+  });
+
+  // Step detail interactions
+  const stepDetails = [
+    "Start with a <strong style='color:var(--orange)'>broad, open-ended question</strong> — no hypothesis needed. You're exploring, not confirming.",
+    "Gather <strong style='color:var(--orange)'>interviews, documents, and field notes</strong>. Keep collecting and analyzing simultaneously — don't wait.",
+    "Apply <strong style='color:var(--orange)'>Open Coding</strong> (break data into fragments) → <strong style='color:var(--orange)'>Axial Coding</strong> (connect into categories) → <strong style='color:var(--orange)'>Selective Coding</strong> (find the core category).",
+    "Establish relationships between categories to produce your <strong style='color:var(--orange)'>emergent grounded theory</strong>. The data built it — not you."
+  ];
+
+  function showStepDetail(idx) {
+    const steps = document.querySelectorAll('.step');
+    steps.forEach((s, i) => {
+      s.classList.toggle('active-step', i === idx);
+      const num = s.querySelector('.step-num');
+      num.style.background = i === idx ? 'var(--orange)' : 'var(--slate)';
+    });
+    const detail = document.getElementById('stepDetail');
+    detail.style.opacity = 0;
+    setTimeout(() => {
+      detail.innerHTML = '<p>' + stepDetails[idx] + '</p>';
+      detail.style.opacity = 1;
+    }, 200);
+    detail.style.transition = 'opacity 0.2s';
+  }
+
+  function highlightEngine(el) {
+    document.querySelectorAll('.engine-item').forEach(e => e.classList.remove('active-item'));
+    el.classList.add('active-item');
+  }
+
+  updateUI();
+</script>
+</body>
+</html>
